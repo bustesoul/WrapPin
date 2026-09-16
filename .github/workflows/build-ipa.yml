@@ -1,0 +1,70 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'New build number, higher than any previously packaged build (current source: 9)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # This project requires the iOS 27 SDK. macos-latest may use older Xcode.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check Xcode and iOS SDK
+        run: |
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          if (( ${sdk_version%%.*} < 27 )); then
+            echo '::error::WrapPin requires Xcode 27 and an iOS 27 or newer SDK.'
+            exit 1
+          fi
+
+      - name: Run existing checks
+        run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          python3 scripts/check-localization.py
+          python3 scripts/test-failure-stages.py
+          python3 scripts/test-background-session.py
+
+      - name: Archive and package unsigned IPA
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          WRAPPIN_TELEMETRY_APP_ID: ${{ vars.WRAPPIN_TELEMETRY_APP_ID }}
+          WRAPPIN_TELEMETRY_NAMESPACE: ${{ vars.WRAPPIN_TELEMETRY_NAMESPACE }}
+        run: bash scripts/build-ipa.sh
+
+      - name: Upload IPA and checksum
+        uses: actions/upload-artifact@v7
+        with:
+          name: WrapPin-IPA-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/ipa/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload build logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: WrapPin-build-logs-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/logs/*
+          if-no-files-found: ignore
+          retention-days: 14

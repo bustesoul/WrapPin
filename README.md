@@ -219,6 +219,8 @@ WrapPin 暂未通过 App Store 或 TestFlight 分发。第一阶段以 GitHub Re
 
 ## 从源码编译
 
+也可以直接在 GitHub 的 **Actions → Build IPA → Run workflow** 中填写递增的 Build 号并启动云端打包，完成后从该次运行的 **Artifacts** 下载 IPA 和 SHA-256 校验文件，无需本地 Xcode 或 Apple 签名证书。产物是供 SideStore 重签安装的未签名 Release IPA，具体步骤见[构建与发布指南](Documentation/BuildAndRelease.md#build-with-github-actions)。
+
 1. 克隆仓库，使用 Xcode 27 或更高版本打开 `WrapPin.xcodeproj`。
 2. 选择 `WrapPin` target。
 3. 在 **Signing & Capabilities** 中选择你自己的 Apple 开发者团队。
